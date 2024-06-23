@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot</title>
+    <title>Chatbotummi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/scripts/verify.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
     <style>
-        /* Custom styles for responsiveness */
         @media (max-width: 768px) {
             .fixed.bottom-16 {
-                bottom: 4rem; /* Adjust the bottom spacing for mobile */
+                bottom: 4rem;
             }
             .max-w-lg {
-                max-width: 90vw; /* Adjust max-width for better fit on mobile screens */
+                max-width: 90vw;
             }
             #question-select {
-                max-width: calc(100% - 2rem); /* Adjust max-width for better fit on mobile screens */
+                max-width: calc(100% - 2rem);
             }
         }
     </style>
@@ -28,7 +29,7 @@
             <i class="mdi mdi-robot-happy-outline mdi-24px"></i>
         </button>
     </div>
-    <div id="chat-container" class="hidden fixed bottom-16 right-4 w-96 max-w-full">
+    <div id="chat-container" class="hidden fixed bottom-16 right-4 w-88 max-w-full">
         <div class="bg-white shadow-md rounded-lg max-w-lg w-full">
             <div class="p-4 border-b bg-blue-800 text-white rounded-t-lg flex justify-between items-center">
                 <p class="text-lg font-semibold">UmmiBot</p>
@@ -72,6 +73,7 @@
 
         let isChatboxOpen = false; // Set the initial state to closed
         let currentQuestions = []; // Array to store current questions
+        let messageIdCounter = 0; // Counter to generate unique IDs for messages
 
         // Function to toggle the chatbox visibility
         function toggleChatbox() {
@@ -140,8 +142,7 @@
                 userInput.value = selectedValue;
                 userInput.setAttribute("readonly", true); // Tambahkan atribut readonly untuk mencegah pengeditan
             }
-        });        
-
+        });
 
         // Function to shuffle array (Fisher-Yates shuffle algorithm)
         function shuffleArray(array) {
@@ -166,6 +167,7 @@
             }
         });
 
+        // Add an event listener to the send button
         sendButton.addEventListener("click", function () {
             sendMessage(userInput.value);
         });
@@ -178,7 +180,9 @@
 
         function sendMessage(message) {
             if (message.trim() !== "") {
-                addUserMessage(message);
+                const userMessageId = `user-msg-${messageIdCounter}`;
+                const botMessageId = `bot-msg-${messageIdCounter}`;
+                addUserMessage(message, userMessageId);
                 showTypingIndicator();
 
                 // Data yang akan dikirim ke API dalam bentuk JSON
@@ -198,40 +202,59 @@
                     .then(response => response.json())
                     .then(data => {
                         // Menanggapi data dari API
-                        respondToUser(data.response);
+                        respondToUser(data.response, userMessageId, botMessageId);
                         hideTypingIndicator();
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        respondToUser('Oops! Terjadi kesalahan saat menghubungi server.');
+                        respondToUser('Oops! Terjadi kesalahan saat menghubungi server.', userMessageId, botMessageId);
                         hideTypingIndicator();
                     });
+
+                messageIdCounter++;
             }
         }
 
-        function addUserMessage(message) {
+        function addUserMessage(message, messageId) {
             const messageElement = document.createElement("div");
             messageElement.classList.add("mb-2", "text-right");
+            messageElement.id = messageId;
             messageElement.innerHTML = `<p class="bg-blue-800 text-white rounded-lg py-2 px-4 inline-block">${message}</p>`;
             chatbox.appendChild(messageElement);
             chatbox.scrollTop = chatbox.scrollHeight;
         }
 
-        function addBotMessage(message) {
+        function addBotMessage(message, userMessageId, botMessageId) {
             const messageElement = document.createElement("div");
-            messageElement.classList.add("mb-2");
-            messageElement.innerHTML = `<p class="bg-gray-200 text-gray-700 rounded-lg py-2 px-4 inline-block">${message}</p>`;
+            messageElement.classList.add("mb-2", "flex", "items-center");
+            messageElement.id = botMessageId;
+            messageElement.innerHTML = `<p class="bg-gray-200 text-gray-700 rounded-lg py-2 px-4 inline-block">${message}</p>
+                <button class="ml-2 bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition duration-300" onclick="resendMessage('${userMessageId}', '${botMessageId}')"><span class="mdi mdi-head-sync-outline"></span></button>`;
             chatbox.appendChild(messageElement);
             chatbox.scrollTop = chatbox.scrollHeight;
         }
 
-        function respondToUser(userMessage) {
-            addBotMessage(userMessage);
+        function respondToUser(botMessage, userMessageId, botMessageId) {
+            addBotMessage(botMessage, userMessageId, botMessageId);
         }
 
-        // Initially load random question options and start timer to refresh every minute
+        window.resendMessage = function(userMessageId, botMessageId) {
+            // Get the user message text before removing the element
+            const userMessageElement = document.getElementById(userMessageId);
+            const userMessageText = userMessageElement.textContent;
+
+            // Remove the old messages
+            const botMessageElement = document.getElementById(botMessageId);
+            if (userMessageElement && botMessageElement) {
+                userMessageElement.remove();
+                botMessageElement.remove();
+            }
+            // Send the message again
+            sendMessage(userMessageText);
+        };
+
         loadRandomQuestionOptions();
-        setInterval(loadRandomQuestionOptions, 60000); // 60000 milliseconds = 1 minute
+        setInterval(loadRandomQuestionOptions, 50000); // 60000 milliseconds = 1 minute
     </script>
 </body>
 </html>
