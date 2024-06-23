@@ -3,21 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>chatbot</title>
+    <title>Chatbot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css">
+    <style>
+        /* Custom styles for responsiveness */
+        @media (max-width: 768px) {
+            .fixed.bottom-16 {
+                bottom: 4rem; /* Adjust the bottom spacing for mobile */
+            }
+            .max-w-lg {
+                max-width: 90vw; /* Adjust max-width for better fit on mobile screens */
+            }
+            #question-select {
+                max-width: calc(100% - 2rem); /* Adjust max-width for better fit on mobile screens */
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- component -->
-<div class="fixed bottom-0 right-0 mb-4 mr-4">
-    <button id="open-chat" class="bg-blue-500 text-white p-4 rounded-full hover:bg-blue-600 transition duration-300 flex items-center justify-center w-16 h-16">
-        <i class="mdi mdi-robot-happy-outline mdi-24px"></i>
-    </button>
+    <div class="fixed bottom-0 right-0 mb-4 mr-4">
+        <button id="open-chat" class="bg-blue-800 text-white p-4 rounded-full hover:bg-blue-900 transition duration-300 flex items-center justify-center w-16 h-16">
+            <i class="mdi mdi-robot-happy-outline mdi-24px"></i>
+        </button>
     </div>
-    <div id="chat-container" class="hidden fixed bottom-16 right-4 w-96">
+    <div id="chat-container" class="hidden fixed bottom-16 right-4 w-96 max-w-full">
         <div class="bg-white shadow-md rounded-lg max-w-lg w-full">
-            <div class="p-4 border-b bg-blue-500 text-white rounded-t-lg flex justify-between items-center">
-                <p class="text-lg font-semibold">Admin Bot</p>
+            <div class="p-4 border-b bg-blue-800 text-white rounded-t-lg flex justify-between items-center">
+                <p class="text-lg font-semibold">UmmiBot</p>
                 <button id="close-chat" class="text-gray-300 hover:text-gray-400 focus:outline-none focus:text-gray-400">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -25,126 +39,199 @@
                 </button>
             </div>
             <div id="chatbox" class="p-4 h-80 overflow-y-auto">
-              <!-- Chat messages will be displayed here -->
+                <!-- Chat messages will be displayed here -->
             </div>
-            <div class="p-4 border-t flex">
-                <input id="user-input" type="text" placeholder="Type a message" class="w-full px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="send-button" class="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600 transition duration-300">Send</button>
+            <div id="typing-indicator" class="p-4 hidden">Mengetik...</div>
+            <div class="p-4 border-t">
+                <div class="flex justify-center mb-4">
+                    <select id="question-select" class="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-800 max-h-32 overflow-y-auto">
+                        <option value="">Pilih Saran Pertanyaan</option>
+                    </select>
+                </div>
+                <div class="mt-4 flex justify-center">
+                    <button id="start-chat" class="bg-blue-800 text-white px-4 py-2 rounded-md hover:bg-blue-900 transition duration-300 hidden">Start Chat</button>
+                </div>
+            </div>
+            <div class="p-4 border-t flex hidden" id="user-input-area">
+                <input id="user-input" type="text" placeholder="Type a message" class="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-800">
+                <button id="send-button" class="bg-blue-800 text-white px-4 py-2 rounded-r-md hover:bg-blue-900 transition duration-300">Send</button>
             </div>
         </div>
     </div>
     <script>
-const chatbox = document.getElementById("chatbox");
-const chatContainer = document.getElementById("chat-container");
-const userInput = document.getElementById("user-input");
-const sendButton = document.getElementById("send-button");
-const openChatButton = document.getElementById("open-chat");
-const closeChatButton = document.getElementById("close-chat");
+        const chatContainer = document.getElementById("chat-container");
+        const openChatButton = document.getElementById("open-chat");
+        const closeChatButton = document.getElementById("close-chat");
+        const typingIndicator = document.getElementById("typing-indicator");
+        const questionSelect = document.getElementById("question-select");
+        const startChatButton = document.getElementById("start-chat");
+        const userInputArea = document.getElementById("user-input-area");
+        const userInput = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
+        const chatbox = document.getElementById("chatbox");
 
-let isChatboxOpen = true; // Set the initial state to open
+        let isChatboxOpen = false; // Set the initial state to closed
+        let currentQuestions = []; // Array to store current questions
 
-// Function to toggle the chatbox visibility
-function toggleChatbox() {
-    chatContainer.classList.toggle("hidden");
-    isChatboxOpen = !isChatboxOpen; // Toggle the state
-}
+        // Function to toggle the chatbox visibility
+        function toggleChatbox() {
+            chatContainer.classList.toggle("hidden");
+            isChatboxOpen = !isChatboxOpen; // Toggle the state
+        }
 
-// Add an event listener to the open chat button
-openChatButton.addEventListener("click", toggleChatbox);
+        // Add an event listener to the open chat button
+        openChatButton.addEventListener("click", function() {
+            toggleChatbox();
+        });
 
-// Add an event listener to the close chat button
-closeChatButton.addEventListener("click", toggleChatbox);
+        // Add an event listener to the close chat button
+        closeChatButton.addEventListener("click", toggleChatbox);
 
-// Add an event listener to the send button
-sendButton.addEventListener("click", function () {
-    const userMessage = userInput.value;
-    if (userMessage.trim() !== "") {
-        addUserMessage(userMessage);
-        
-        // Data yang akan dikirim ke API dalam bentuk JSON
-        const requestData = { message: userMessage };
-        
-        // Konfigurasi untuk melakukan fetch ke API
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestData)
-        };
-        
-        // Mengirim permintaan ke API
-        fetch('http://127.0.0.1:5000/predict', requestOptions)
-            .then(response => response.json())
-            .then(data => {
-                // Menanggapi data dari API
-                respondToUser(data.response);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                respondToUser('Oops! Terjadi kesalahan saat menghubungi server.');
+        // Function to show typing indicator
+        function showTypingIndicator() {
+            typingIndicator.classList.remove("hidden");
+        }
+
+        // Function to hide typing indicator
+        function hideTypingIndicator() {
+            typingIndicator.classList.add("hidden");
+        }
+
+        // Function to load and display random question options
+        function loadRandomQuestionOptions() {
+            fetch('train_inputs.json')
+                .then(response => response.json())
+                .then(data => {
+                    shuffleArray(data); // Shuffle questions
+                    currentQuestions = data.slice(0, 5); // Get the first 5 questions
+                    renderQuestionOptions();
+                })
+                .catch(error => console.error('Error loading questions:', error));
+        }
+
+        // Function to render question options in dropdown
+        function renderQuestionOptions() {
+            questionSelect.innerHTML = '<option value="">Pilih Saran Pertanyaan</option>';
+            currentQuestions.forEach((question, index) => {
+                const option = document.createElement("option");
+                option.value = question;
+                option.textContent = question;
+                questionSelect.appendChild(option);
             });
 
-        userInput.value = "";
-    }
-});
+            // Tambahkan opsi untuk memasukkan pertanyaan sendiri
+            const customOption = document.createElement("option");
+            customOption.value = "";
+            customOption.textContent = "Masukkan Pertanyaan Sendiri";
+            questionSelect.appendChild(customOption);
+        }
+
+        questionSelect.addEventListener("change", function() {
+            const selectedValue = questionSelect.value;
+            if (selectedValue === "") {
+                // Jika opsi "Masukkan Pertanyaan Sendiri" dipilih, tampilkan area input
+                startChat();
+                userInput.value = ""; // Kosongkan input sebelumnya jika ada
+                userInput.removeAttribute("readonly"); // Hapus atribut readonly
+                userInput.focus(); // Fokuskan kursor ke input
+            } else if (selectedValue !== "") {
+                // Jika opsi pertanyaan lain dipilih, isi input dengan nilai tersebut
+                startChat();
+                userInput.value = selectedValue;
+                userInput.setAttribute("readonly", true); // Tambahkan atribut readonly untuk mencegah pengeditan
+            }
+        });        
 
 
-userInput.addEventListener("keyup", function (event) {
-    if (event.key === "Enter") {
-        const userMessage = userInput.value;
-        addUserMessage(userMessage);
-        const requestData = { message: userMessage };
+        // Function to shuffle array (Fisher-Yates shuffle algorithm)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
 
-        // Konfigurasi untuk melakukan fetch ke API
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestData)
-        };
-        
-        // Mengirim permintaan ke API
-        fetch('https://web-production-4616e.up.railway.app/predict', requestOptions)
-            .then(response => response.json())
-            .then(data => {
-                // Menanggapi data dari API
-                respondToUser(data.response);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                respondToUser('Oops! Terjadi kesalahan saat menghubungi server.');
-            });
+        // Function to start the chat
+        function startChat() {
+            startChatButton.classList.add("hidden");
+            userInputArea.classList.remove("hidden");
+            // Optionally, you can send an initial message or do other setup here
+        }
 
-        userInput.value = "";
-    }
-});
+        // Add an event listener to the question select dropdown
+        questionSelect.addEventListener("change", function() {
+            if (questionSelect.value !== "") {
+                startChat();
+                userInput.value = questionSelect.value;
+            }
+        });
 
-function addUserMessage(message) {
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("mb-2", "text-right");
-    messageElement.innerHTML = `<p class="bg-blue-500 text-white rounded-lg py-2 px-4 inline-block">${message}</p>`;
-    chatbox.appendChild(messageElement);
-    chatbox.scrollTop = chatbox.scrollHeight;
-}
+        sendButton.addEventListener("click", function () {
+            sendMessage(userInput.value);
+        });
 
-function addBotMessage(message) {
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("mb-2");
-    messageElement.innerHTML = `<p class="bg-gray-200 text-gray-700 rounded-lg py-2 px-4 inline-block">${message}</p>`;
-    chatbox.appendChild(messageElement);
-    chatbox.scrollTop = chatbox.scrollHeight;
-}
+        userInput.addEventListener("keyup", function (event) {
+            if (event.key === "Enter") {
+                sendMessage(userInput.value);
+            }
+        });
 
-function respondToUser(userMessage) {
-    // Replace this with your chatbot logic
-        addBotMessage(userMessage);
-}
+        function sendMessage(message) {
+            if (message.trim() !== "") {
+                addUserMessage(message);
+                showTypingIndicator();
 
-// Automatically open the chatbox on page load
-toggleChatbox();
+                // Data yang akan dikirim ke API dalam bentuk JSON
+                const requestData = { message: message };
 
-        </script>
+                // Konfigurasi untuk melakukan fetch ke API (contoh sederhana, harus disesuaikan dengan API yang sesuai)
+                const requestOptions = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                };
+
+                // Mengirim permintaan ke API
+                fetch('http://127.0.0.1:5000/predict', requestOptions)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Menanggapi data dari API
+                        respondToUser(data.response);
+                        hideTypingIndicator();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        respondToUser('Oops! Terjadi kesalahan saat menghubungi server.');
+                        hideTypingIndicator();
+                    });
+            }
+        }
+
+        function addUserMessage(message) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("mb-2", "text-right");
+            messageElement.innerHTML = `<p class="bg-blue-800 text-white rounded-lg py-2 px-4 inline-block">${message}</p>`;
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function addBotMessage(message) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("mb-2");
+            messageElement.innerHTML = `<p class="bg-gray-200 text-gray-700 rounded-lg py-2 px-4 inline-block">${message}</p>`;
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function respondToUser(userMessage) {
+            addBotMessage(userMessage);
+        }
+
+        // Initially load random question options and start timer to refresh every minute
+        loadRandomQuestionOptions();
+        setInterval(loadRandomQuestionOptions, 60000); // 60000 milliseconds = 1 minute
+    </script>
 </body>
 </html>
