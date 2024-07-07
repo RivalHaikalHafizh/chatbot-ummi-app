@@ -20,6 +20,12 @@
                 max-width: calc(100% - 2rem);
             }
         }
+        .fixed-bottom-adjust {
+            bottom: 2rem; /* Adjust this value to position the chat lower */
+        }
+        .fixed-width {
+            width: 350px; /* Set a fixed width for the chat container */
+        }
     </style>
 </head>
 <body>
@@ -29,7 +35,7 @@
             <i class="mdi mdi-robot-happy-outline mdi-24px"></i>
         </button>
     </div>
-    <div id="chat-container" class="hidden fixed bottom-16 right-4 w-88 max-w-full">
+    <div id="chat-container" class="hidden fixed fixed-bottom-adjust right-4 fixed-width max-w-full">
         <div class="bg-white shadow-md rounded-lg max-w-lg w-full">
             <div class="p-4 border-b bg-blue-800 text-white rounded-t-lg flex justify-between items-center">
                 <p class="text-lg font-semibold">UmmiBot</p>
@@ -45,12 +51,16 @@
             <div id="typing-indicator" class="p-4 hidden">Mengetik...</div>
             <div class="p-4 border-t">
                 <div class="flex justify-center mb-4">
-                    <select id="question-select" class="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-800 max-h-32 overflow-y-auto">
-                        <option value="">Pilih Saran Pertanyaan</option>
+                    <select id="category-select" class="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-800 max-h-32 overflow-y-auto">
+                        <option value="">Pilih Kategori</option>
+                        <option value="akademik">Informasi Akademik UMMI</option>
+                        <option value="keuangan">Informasi Keuangan UMMI</option>
                     </select>
                 </div>
-                <div class="mt-4 flex justify-center">
-                    <button id="start-chat" class="bg-blue-800 text-white px-4 py-2 rounded-md hover:bg-blue-900 transition duration-300 hidden">Start Chat</button>
+                <div class="flex justify-center mb-4">
+                    <select id="question-select" class="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-blue-800 max-h-32 overflow-y-auto hidden">
+                        <option value="">Pertanyaan yang sering ditanyakan</option>
+                    </select>
                 </div>
             </div>
             <div class="p-4 border-t flex hidden" id="user-input-area">
@@ -64,87 +74,102 @@
         const openChatButton = document.getElementById("open-chat");
         const closeChatButton = document.getElementById("close-chat");
         const typingIndicator = document.getElementById("typing-indicator");
+        const categorySelect = document.getElementById("category-select");
         const questionSelect = document.getElementById("question-select");
-        const startChatButton = document.getElementById("start-chat");
         const userInputArea = document.getElementById("user-input-area");
         const userInput = document.getElementById("user-input");
         const sendButton = document.getElementById("send-button");
         const chatbox = document.getElementById("chatbox");
 
-        let isChatboxOpen = false; // Set the initial state to closed
-        let currentQuestions = []; // Array to store current questions
-        let messageIdCounter = 0; // Counter to generate unique IDs for messages
+        let isChatboxOpen = false;
+        let currentQuestions = [];
+        let messageIdCounter = 0;
+        let selectedCategory = "";
+        let loadQuestionsInterval = null;
 
-        // Function to toggle the chatbox visibility
         function toggleChatbox() {
             chatContainer.classList.toggle("hidden");
-            isChatboxOpen = !isChatboxOpen; // Toggle the state
+            isChatboxOpen = !isChatboxOpen;
         }
 
-        // Add an event listener to the open chat button
         openChatButton.addEventListener("click", function() {
             toggleChatbox();
         });
 
-        // Add an event listener to the close chat button
         closeChatButton.addEventListener("click", toggleChatbox);
 
-        // Function to show typing indicator
         function showTypingIndicator() {
             typingIndicator.classList.remove("hidden");
         }
 
-        // Function to hide typing indicator
         function hideTypingIndicator() {
             typingIndicator.classList.add("hidden");
         }
 
-        // Function to load and display random question options
-        function loadRandomQuestionOptions() {
+        function loadQuestionOptions(category) {
             fetch('train_inputs.json')
                 .then(response => response.json())
                 .then(data => {
-                    shuffleArray(data); // Shuffle questions
-                    currentQuestions = data.slice(0, 5); // Get the first 5 questions
-                    renderQuestionOptions();
+                    if (data[category]) {
+                        currentQuestions = data[category];
+                        updateQuestionOptions();
+                    }
                 })
                 .catch(error => console.error('Error loading questions:', error));
         }
 
-        // Function to render question options in dropdown
-        function renderQuestionOptions() {
-            questionSelect.innerHTML = '<option value="">Pilih Saran Pertanyaan</option>';
-            currentQuestions.forEach((question, index) => {
+        function updateQuestionOptions() {
+            questionSelect.innerHTML = '<option value="">Pertanyaan Yang Sering Ditanyakan</option>';
+            shuffleArray(currentQuestions);
+            const limitedQuestions = currentQuestions.slice(0, 5);
+            renderQuestionOptions(limitedQuestions);
+        }
+
+        function renderQuestionOptions(questions) {
+            questions.forEach((question) => {
                 const option = document.createElement("option");
                 option.value = question;
                 option.textContent = question;
                 questionSelect.appendChild(option);
             });
 
-            // Tambahkan opsi untuk memasukkan pertanyaan sendiri
             const customOption = document.createElement("option");
             customOption.value = "";
-            customOption.textContent = "Masukkan Pertanyaan Sendiri";
+            customOption.textContent = "Buat Pertanyaan Sendiri";
             questionSelect.appendChild(customOption);
+
+            if (questions.length > 0) {
+                questionSelect.classList.remove("hidden");
+            } else {
+                questionSelect.classList.add("hidden");
+            }
         }
+
+        categorySelect.addEventListener("change", function() {
+            selectedCategory = categorySelect.value;
+            if (selectedCategory) {
+                loadQuestionOptions(selectedCategory);
+                clearInterval(loadQuestionsInterval);
+                loadQuestionsInterval = setInterval(() => loadQuestionOptions(selectedCategory), 6000);
+            } else {
+                questionSelect.classList.add("hidden");
+                userInputArea.classList.add("hidden");
+            }
+        });
 
         questionSelect.addEventListener("change", function() {
             const selectedValue = questionSelect.value;
             if (selectedValue === "") {
-                // Jika opsi "Masukkan Pertanyaan Sendiri" dipilih, tampilkan area input
-                startChat();
-                userInput.value = ""; // Kosongkan input sebelumnya jika ada
-                userInput.removeAttribute("readonly"); // Hapus atribut readonly
-                userInput.focus(); // Fokuskan kursor ke input
+                userInput.value = "";
+                userInput.removeAttribute("readonly");
+                userInput.focus();
             } else if (selectedValue !== "") {
-                // Jika opsi pertanyaan lain dipilih, isi input dengan nilai tersebut
-                startChat();
                 userInput.value = selectedValue;
-                userInput.setAttribute("readonly", true); // Tambahkan atribut readonly untuk mencegah pengeditan
+                userInput.setAttribute("readonly", true);
+                startChat();
             }
         });
 
-        // Function to shuffle array (Fisher-Yates shuffle algorithm)
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -152,22 +177,10 @@
             }
         }
 
-        // Function to start the chat
         function startChat() {
-            startChatButton.classList.add("hidden");
             userInputArea.classList.remove("hidden");
-            // Optionally, you can send an initial message or do other setup here
         }
 
-        // Add an event listener to the question select dropdown
-        questionSelect.addEventListener("change", function() {
-            if (questionSelect.value !== "") {
-                startChat();
-                userInput.value = questionSelect.value;
-            }
-        });
-
-        // Add an event listener to the send button
         sendButton.addEventListener("click", function () {
             sendMessage(userInput.value);
         });
@@ -185,10 +198,8 @@
                 addUserMessage(message, userMessageId);
                 showTypingIndicator();
 
-                // Data yang akan dikirim ke API dalam bentuk JSON
                 const requestData = { message: message };
 
-                // Konfigurasi untuk melakukan fetch ke API (contoh sederhana, harus disesuaikan dengan API yang sesuai)
                 const requestOptions = {
                     method: 'POST',
                     headers: {
@@ -197,18 +208,16 @@
                     body: JSON.stringify(requestData)
                 };
 
-                // Mengirim permintaan ke API
                 fetch('http://127.0.0.1:5000/predict', requestOptions)
                     .then(response => response.json())
                     .then(data => {
-                        // Menanggapi data dari API
-                        respondToUser(data.response, userMessageId, botMessageId);
                         hideTypingIndicator();
+                        respondToUser(data.response, userMessageId, botMessageId);
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        respondToUser('Oops! Terjadi kesalahan saat menghubungi server.', userMessageId, botMessageId);
                         hideTypingIndicator();
+                        respondToUser('Oops! Terjadi kesalahan saat menghubungi server.', userMessageId, botMessageId);
                     });
 
                 messageIdCounter++;
@@ -239,22 +248,17 @@
         }
 
         window.resendMessage = function(userMessageId, botMessageId) {
-            // Get the user message text before removing the element
             const userMessageElement = document.getElementById(userMessageId);
             const userMessageText = userMessageElement.textContent;
 
-            // Remove the old messages
             const botMessageElement = document.getElementById(botMessageId);
             if (userMessageElement && botMessageElement) {
                 userMessageElement.remove();
                 botMessageElement.remove();
             }
-            // Send the message again
+
             sendMessage(userMessageText);
         };
-
-        loadRandomQuestionOptions();
-        setInterval(loadRandomQuestionOptions, 50000); // 60000 milliseconds = 1 minute
     </script>
 </body>
 </html>
