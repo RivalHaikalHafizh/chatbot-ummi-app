@@ -208,7 +208,7 @@
                     body: JSON.stringify(requestData)
                 };
 
-                fetch('http://127.0.0.1:5000/predict', requestOptions)
+                fetch('chatbotummi.up.railway.app/predict', requestOptions)
                     .then(response => response.json())
                     .then(data => {
                         hideTypingIndicator();
